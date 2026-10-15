@@ -56,6 +56,19 @@ valkey-server --port 7380 \
         disk-staging-size 64mb
 ```
 
+## Naming conventions
+
+The codebase uses implementation-specific names internally and hardware-neutral names on all client-facing surfaces (error messages, INFO fields, config parameters, command names).
+
+| Internal (code) | Client-facing | Notes |
+|---|---|---|
+| **EFA** (Elastic Fabric Adapter) | **RDMA** | Commands use `BLOB.RDMA_*`. Error strings say "rdma address". Code uses EFA in type/function names and comments. |
+| **NVMe** | **disk** | Config uses `disk-dir`, `disk-maxmemory`. Code uses NVMe in module names (`nvme.rs`) and internal functions. |
+| **NVMe staging pool** | **disk_staging** | INFO fields prefixed `disk_staging_*`, config `disk-staging-size`. Refers to the DRAM buffers used for disk I/O, not the disk itself. |
+| **address** (unqualified) | **rdma address** or **memory address** | "rdma address" = the client's RDMA fabric endpoint (from `BLOB.RDMA_HELLO`). "memory address" = a client-side buffer described by an `(rkey, addr, len)` triple. Never use bare "address" in client-facing strings. |
+
+When adding new code: use EFA/NVMe freely in Rust identifiers, doc comments, and server log messages. Any string returned to a client must use the client-facing term.
+
 ## Configuration
 
 | Parameter | Default | Mutable | Description |

@@ -96,7 +96,7 @@ class TestLargeObjTieredPromotion(ValkeyLargeObjTestCaseBase):
         client.execute_command('BLOB.TCP_SET', 'promo_key', payload)
 
         # Freshly SET: on NVMe only, nothing cached yet.
-        assert client.execute_command('BLOB.INFO', 'promo_key', 'TIER') == b'nvme'
+        assert client.execute_command('BLOB.INFO', 'promo_key', 'TIER') == b'disk'
 
         # First GET: DRAMPool miss -> NVMe read -> promote to DRAMPool.
         result1 = client.execute_command('BLOB.TCP_GET', 'promo_key')
@@ -155,7 +155,7 @@ class TestLargeObjTieredPromotion(ValkeyLargeObjTestCaseBase):
         client.execute_command('BLOB.TCP_GET', 'srckey2')  # promote source
         assert client.execute_command('BLOB.INFO', 'srckey2', 'TIER') == b'dram'
         client.execute_command('COPY', 'srckey2', 'dstkey3')
-        assert client.execute_command('BLOB.INFO', 'dstkey3', 'TIER') == b'nvme'
+        assert client.execute_command('BLOB.INFO', 'dstkey3', 'TIER') == b'disk'
 
     # ─── MEMORY USAGE callback tests ──────────────────────────────────────
 
@@ -212,7 +212,7 @@ class TestLargeObjTieredPromotion(ValkeyLargeObjTestCaseBase):
             client.execute_command('BLOB.TCP_SET', 'nvme_cap_3', payload)
             assert False, "Expected capacity exceeded error from disk-maxmemory"
         except ResponseError as e:
-            assert 'nvme disk capacity exceeded' in str(e).lower(), f"Unexpected error: {e}"
+            assert 'used disk space' in str(e).lower(), f"Unexpected error: {e}"
 
     # ─── DEL semantics ────────────────────────────────────────────────────
 
@@ -336,7 +336,7 @@ class TestLargeObjTieredPromotion(ValkeyLargeObjTestCaseBase):
         except ResponseError as e:
             err = str(e).lower()
             assert 'max object size' in err, f"Unexpected error: {e}"
-            assert 'nvme' not in err, f"Should not hit NVMe error: {e}"
+            assert 'used disk space' not in err, f"Should not hit disk OOM error: {e}"
         # Rejected SET must not leave a .dat file or phantom key.
         assert self._dat_count() == 0
         assert client.execute_command('DBSIZE') == 0
@@ -464,7 +464,7 @@ class TestLargeObjTieredNvmeOnly(ValkeyLargeObjTestCaseBase):
         for _ in range(5):
             result = client.execute_command('BLOB.TCP_GET', 'repeat_key')
             assert result == payload
-            assert client.execute_command('BLOB.INFO', 'repeat_key', 'TIER') == b'nvme'
+            assert client.execute_command('BLOB.INFO', 'repeat_key', 'TIER') == b'disk'
 
     def test_reject_invalid_buffer_configs(self):
         """CONFIG SET rejects min-buffers-per-op > max-buffers-per-op and
@@ -563,12 +563,12 @@ class _NvmeAccountingBase(ValkeyLargeObjTestCaseBase):
                 assert client.execute_command("BLOB.TCP_SET", key, payload) == b"OK"
                 return
             except ResponseError as e:
-                if "pool exhausted" not in str(e).lower():
+                if "used disk space" not in str(e).lower():
                     raise
                 last = e
                 time.sleep(delay)
         assert False, (
-            f"SET '{key}' still pool-exhausted after {tries} tries "
+            f"SET '{key}' still OOM-disk after {tries} tries "
             f"({tries * delay:.1f}s) -- capacity not reclaimed on overwrite (leak): {last}"
         )
 
@@ -578,7 +578,7 @@ class _NvmeAccountingBase(ValkeyLargeObjTestCaseBase):
             assert False, f"Expected '{key}' SET to be rejected (capacity exceeded)"
         except ResponseError as e:
             err = str(e).lower()
-            assert "pool exhausted" in err or "capacity exceeded" in err, \
+            assert "used disk space" in err, \
                 f"Unexpected error: {e}"
 
 
@@ -869,7 +869,7 @@ class TestLargeObjTieredAdmission(ValkeyLargeObjTestCaseBase):
 
         # GET 1: rejected by admission, served transiently.
         assert client.execute_command('BLOB.TCP_GET', 'basic_key') == payload
-        assert client.execute_command('BLOB.INFO', 'basic_key', 'TIER') == b'nvme'
+        assert client.execute_command('BLOB.INFO', 'basic_key', 'TIER') == b'disk'
         after1 = dram()
         assert after1['largeobj_cache_misses'] == 1
         assert after1['largeobj_cache_admission_rejects'] == 1
@@ -922,7 +922,7 @@ class TestLargeObjTieredAdmission(ValkeyLargeObjTestCaseBase):
         client.execute_command('BLOB.TCP_SET', 'three_key', payload)
         for _ in range(2):
             assert client.execute_command('BLOB.TCP_GET', 'three_key') == payload
-            assert client.execute_command('BLOB.INFO', 'three_key', 'TIER') == b'nvme'
+            assert client.execute_command('BLOB.INFO', 'three_key', 'TIER') == b'disk'
         assert client.execute_command('BLOB.TCP_GET', 'three_key') == payload
         assert client.execute_command('BLOB.INFO', 'three_key', 'TIER') == b'dram'
 
@@ -999,10 +999,10 @@ class TestLargeObjTieredReclaim(ValkeyLargeObjTestCaseBase):
         assert client.execute_command('BLOB.INFO', hot, 'TIER') == b'dram'
         assert client.execute_command('BLOB.INFO', 'ev_new', 'TIER') == b'dram'
         tiers = [client.execute_command('BLOB.INFO', k, 'TIER') for k in self.KEYS[1:]]
-        assert tiers.count(b'nvme') == 1, tiers
+        assert tiers.count(b'disk') == 1, tiers
 
         # The reclaimed copy is still on NVMe and reads back intact.
-        reclaimed = self.KEYS[1:][tiers.index(b'nvme')]
+        reclaimed = self.KEYS[1:][tiers.index(b'disk')]
         idx = self.KEYS.index(reclaimed)
         assert client.execute_command('BLOB.TCP_GET', reclaimed) == bytes([65 + idx]) * self.OBJ
 
@@ -1074,7 +1074,7 @@ class TestLargeObjTieredReclaimOneSegment(ValkeyLargeObjTestCaseBase):
         assert info['largeobj_dram_objects'] == 7
         assert info['largeobj_dram_segments'] == 2
         assert info['largeobj_dram_scaling_expands'] == 1
-        assert client.execute_command('BLOB.INFO', 'C', 'TIER') == b'nvme'
+        assert client.execute_command('BLOB.INFO', 'C', 'TIER') == b'disk'
         for k in ('A', 'B', 'D', 'E', 'H', 'F'):
             assert client.execute_command('BLOB.INFO', k, 'TIER') == b'dram', k
         # The reclaimed copy still reads back from NVMe.

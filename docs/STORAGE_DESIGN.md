@@ -221,7 +221,7 @@ In Dram mode, there is no io_uring engine — NVMe I/O does not exist — so nei
 
 If EFA init fails at startup, `fi_mr_reg` is skipped for all segments. RDMA
 command paths are unusable for the module's lifetime: `BLOB.RDMA_HELLO` fails, and
-`BLOB.RDMA_GET`/`BLOB.RDMA_SET` require a HELLO session. The fabric is opened once
+`BLOB.RDMA_GET`/`BLOB.RDMA_SET` with addresses require a HELLO session. The fabric is opened once
 at load; there is no runtime re-detection. TCP-transport paths continue normally.
 
 **Why separate segments per layer:**

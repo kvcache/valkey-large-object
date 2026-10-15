@@ -359,8 +359,8 @@ fn cmd_get_tiered(
                     valkey_module::ThreadSafeContext::with_blocked_client(blocked_client);
                 reply_err(
                     &thread_ctx,
-                    &info::NVME_READ_ERRORS,
-                    ValkeyError::Str(errors::ERR_NVME_READ),
+                    &info::DISK_READ_ERRORS,
+                    ValkeyError::Str(errors::ERR_DISK_READ),
                 );
                 return;
             }
@@ -416,8 +416,8 @@ fn cmd_get_tiered(
             let thread_ctx = valkey_module::ThreadSafeContext::with_blocked_client(blocked_client);
             reply_err(
                 &thread_ctx,
-                &info::NVME_BUFFER_EXHAUSTED,
-                ValkeyError::Str(errors::ERR_INSUFFICIENT_NVME_BUFFERS),
+                &info::DISK_STAGING_BUFFER_EXHAUSTED,
+                ValkeyError::Str(errors::ERR_DISK_STAGING_EXHAUSTED),
             );
             return;
         }
@@ -430,8 +430,8 @@ fn cmd_get_tiered(
             let thread_ctx = valkey_module::ThreadSafeContext::with_blocked_client(blocked_client);
             reply_err(
                 &thread_ctx,
-                &info::NVME_READ_ERRORS,
-                ValkeyError::Str(errors::ERR_NVME_READ),
+                &info::DISK_READ_ERRORS,
+                ValkeyError::Str(errors::ERR_DISK_READ),
             );
             return;
         }
@@ -631,7 +631,7 @@ fn cmd_set_dram_tcp(
         Some(bufs) => bufs,
         None => {
             info::DRAM_POOL_EXHAUSTED.fetch_add(1, Ordering::Relaxed);
-            return Err(ValkeyError::Str(errors::ERR_DRAM_POOL_EXHAUSTED));
+            return Err(ValkeyError::Str(errors::ERR_OOM));
         }
     };
     // DRAM-only SET allocates one buffer per chunk (no sliding window), so the
@@ -706,7 +706,7 @@ fn cmd_set_dram_efa(
             reply_err(
                 &thread_ctx,
                 &info::DRAM_POOL_EXHAUSTED,
-                ValkeyError::Str(errors::ERR_DRAM_POOL_EXHAUSTED),
+                ValkeyError::Str(errors::ERR_OOM),
             );
             return;
         }
@@ -796,8 +796,8 @@ fn cmd_set_tiered(
             let thread_ctx = valkey_module::ThreadSafeContext::with_blocked_client(blocked_client);
             reply_err(
                 &thread_ctx,
-                &info::NVME_BUFFER_EXHAUSTED,
-                ValkeyError::Str(errors::ERR_INSUFFICIENT_NVME_BUFFERS),
+                &info::DISK_STAGING_BUFFER_EXHAUSTED,
+                ValkeyError::Str(errors::ERR_DISK_STAGING_EXHAUSTED),
             );
             return;
         }
@@ -892,8 +892,8 @@ async fn cmd_set_tiered_run(
     if !nvme::try_reserve_nvme_disk_usage(disk_len) {
         reply_err(
             &thread_ctx,
-            &info::NVME_CAPACITY_EXCEEDED,
-            ValkeyError::Str(errors::ERR_NVME_CAPACITY_EXCEEDED),
+            &info::DISK_CAPACITY_EXCEEDED,
+            ValkeyError::Str(errors::ERR_OOM_DISK),
         );
         return;
     }
@@ -906,8 +906,8 @@ async fn cmd_set_tiered_run(
             nvme::decrease_nvme_disk_usage(disk_len);
             reply_err(
                 &thread_ctx,
-                &info::NVME_WRITE_ERRORS,
-                ValkeyError::Str(errors::ERR_NVME_WRITE),
+                &info::DISK_WRITE_ERRORS,
+                ValkeyError::Str(errors::ERR_DISK_WRITE),
             );
             return;
         }
