@@ -22,6 +22,7 @@ pub static DISK_CAPACITY_EXCEEDED: AtomicU64 = AtomicU64::new(0);
 pub static SET_FINALIZE_STALE: AtomicU64 = AtomicU64::new(0);
 pub static SET_VALUE_FAILURES: AtomicU64 = AtomicU64::new(0);
 pub static RDMA_DISCARDED_TRANSFERS: AtomicU64 = AtomicU64::new(0);
+pub static CRC_MISMATCH: AtomicU64 = AtomicU64::new(0);
 
 // ─── Core Metrics ────────────────────────────────────────────────────────────
 
@@ -303,6 +304,7 @@ fn error_metrics_section(ctx: &InfoContext) -> ValkeyResult<()> {
             "rdma_discarded_transfers",
             RDMA_DISCARDED_TRANSFERS.load(Ordering::Relaxed) as i64,
         )?
+        .field("crc_mismatch", CRC_MISMATCH.load(Ordering::Relaxed) as i64)?
         .build_section()?
         .build_info()
         .map(|_| ())

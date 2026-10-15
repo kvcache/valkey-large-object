@@ -30,6 +30,7 @@ define_errors! {
     ERR_INVALID_MEMORY_ADDR => "ERR invalid memory address",
     ERR_INVALID_MEMORY_ADDR_LEN => "ERR invalid memory address len",
     ERR_INVALID_LEN => "ERR invalid len",
+    ERR_INVALID_CRC => "ERR invalid CRC value",
     ERR_MAX_OBJECT_SIZE_EXCEEDED => "ERR max object size exceeded",
     ERR_NO_RDMA_SESSION => "ERR no RDMA session (call BLOB.RDMA_HELLO first)",
     ERR_RDMA_SESSION_EXISTS => "ERR RDMA session already established",
@@ -48,6 +49,7 @@ define_errors! {
     ERR_RDMA_WRITE => "ERR RDMA write failed",
     ERR_RDMA_READ => "ERR RDMA read failed",
     ERR_SESSION_CREATE => "ERR session create",
+    ERR_CRC_MISMATCH => "ERR CRC mismatch after transfer",
 
     // Streaming Errors
     ERR_DISK_STAGING_EXHAUSTED => "ERR disk staging buffer pool exhausted",
