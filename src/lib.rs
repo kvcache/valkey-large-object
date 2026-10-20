@@ -112,12 +112,6 @@ pub fn efa_release_segment(base: usize) {
     }
 }
 
-/// Count of EFA-registered segments (0 when no fabric). Equals the live segment count when the
-/// fabric is up (every live segment is registered); surfaced in INFO to assert that invariant.
-pub fn efa_registered_segment_count() -> usize {
-    transport::fabric::registered_segment_count()
-}
-
 // ─── Module Lifecycle ────────────────────────────────────────────────────────
 
 fn initialize(ctx: &Context, _args: &[ValkeyString]) -> Status {

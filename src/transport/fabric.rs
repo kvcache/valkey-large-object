@@ -121,13 +121,12 @@ impl Fabric {
         drop(regions);
     }
 
-    /// Count of currently EFA-registered segments (one map entry per base). Equals the live
-    /// segment count when the fabric is up — used to assert that invariant in tests, not a metric.
-    pub fn registered_segment_count(&self) -> usize {
+    /// Whether the segment at `base` is currently EFA-registered.
+    pub fn is_registered(&self, base: usize) -> bool {
         self.regions
             .lock()
             .expect("Fabric.regions lock unavailable")
-            .len()
+            .contains_key(&base)
     }
 
     /// Insert the client's address into every service's address vector at BLOB.RDMA_HELLO, so its
@@ -171,11 +170,6 @@ pub fn commit(fabric: Option<Fabric>) {
 /// The running fabric, or `None` when this instance has none.
 pub fn fabric() -> Option<Arc<Fabric>> {
     FABRIC.read().expect("FABRIC lock unavailable").clone()
-}
-
-/// Number of EFA-registered segments, or 0 when no fabric is up.
-pub fn registered_segment_count() -> usize {
-    fabric().map_or(0, |f| f.registered_segment_count())
 }
 
 /// Drop the services. Each closes its channel, drains its in-flight transfers, and joins its
