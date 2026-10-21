@@ -57,8 +57,8 @@ pub fn lo_info(ctx: &InfoContext, _for_crash_report: bool) {
 fn info_sections(ctx: &InfoContext) -> ValkeyResult<()> {
     core_metrics_section(ctx)?;
     dram_pool_section(ctx)?;
-    disk_staging_section(ctx)?;
     disk_section(ctx)?;
+    disk_staging_section(ctx)?;
     fd_section(ctx)?;
     smartlog_section(ctx)?;
     rdma_section(ctx)?;
@@ -80,19 +80,6 @@ fn core_metrics_section(ctx: &InfoContext) -> ValkeyResult<()> {
             storage::reclaim::RECLAIM_LIST.len() as i64,
         )?
         .field("evictions", EVICTIONS.load(Ordering::Relaxed) as i64)?
-        .field("disk_used_bytes", storage::nvme::nvme_disk_usage() as i64)?
-        .field(
-            "disk_orphaned_files",
-            storage::nvme::ORPHANED_FILES.count.load(Ordering::Relaxed) as i64,
-        )?
-        .field(
-            "disk_orphaned_bytes",
-            storage::nvme::ORPHANED_FILES.bytes.load(Ordering::Relaxed) as i64,
-        )?
-        .field(
-            "disk_unevictable_objects",
-            storage::object_file::unevictable_count() as i64,
-        )?
         .field(
             "inflight_requests",
             crate::engine::inflight_requests() as i64,
@@ -208,6 +195,35 @@ fn dram_pool_section(ctx: &InfoContext) -> ValkeyResult<()> {
         .map(|_| ())
 }
 
+/// Object files on disk, Tiered mode only.
+fn disk_section(ctx: &InfoContext) -> ValkeyResult<()> {
+    if operating_mode() != OperatingMode::Tiered {
+        return Ok(());
+    }
+    let used = storage::nvme::nvme_disk_usage();
+
+    ctx.builder()
+        .add_section("disk")
+        .field("disk_used_bytes", used as i64)?
+        .field("disk_utilization_pct", pct(used, crate::nvme_maxmemory()))?
+        .field(
+            "disk_orphaned_files",
+            storage::nvme::ORPHANED_FILES.count.load(Ordering::Relaxed) as i64,
+        )?
+        .field(
+            "disk_orphaned_bytes",
+            storage::nvme::ORPHANED_FILES.bytes.load(Ordering::Relaxed) as i64,
+        )?
+        .field(
+            "disk_unevictable_objects",
+            storage::object_file::unevictable_count() as i64,
+        )?
+        .build_section()?
+        .build_info()
+        .map(|_| ())
+}
+
+/// NVMe staging pool, Tiered mode only.
 fn disk_staging_section(ctx: &InfoContext) -> ValkeyResult<()> {
     let Some(nvme) = storage::NVME_POOL.get() else {
         return Ok(());
@@ -233,21 +249,6 @@ fn disk_staging_section(ctx: &InfoContext) -> ValkeyResult<()> {
             "disk_staging_uring_registered_segments",
             nvme.io_uring_registered_count() as i64,
         )?
-        .build_section()?
-        .build_info()
-        .map(|_| ())
-}
-
-/// Object files on disk, Tiered mode only: how full the disk budget is.
-fn disk_section(ctx: &InfoContext) -> ValkeyResult<()> {
-    if operating_mode() != OperatingMode::Tiered {
-        return Ok(());
-    }
-    let util_pct = pct(storage::nvme::nvme_disk_usage(), crate::nvme_maxmemory());
-
-    ctx.builder()
-        .add_section("disk")
-        .field("disk_utilization_pct", util_pct)?
         .build_section()?
         .build_info()
         .map(|_| ())
