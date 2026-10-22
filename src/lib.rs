@@ -320,6 +320,8 @@ valkey_module! {
              ConfigurationFlags::IMMUTABLE, None, None],
             ["fabric-crc-pool-threads", &*CFG_FABRIC_CRC_POOL_THREADS, DEFAULT_FABRIC_CRC_POOL_THREADS, MIN_FABRIC_CRC_POOL_THREADS, MAX_FABRIC_CRC_POOL_THREADS,
              ConfigurationFlags::IMMUTABLE, None, None],
+            ["max-rdma-registered-bytes", &*CFG_MAX_RDMA_REGISTERED_BYTES, DEFAULT_MAX_RDMA_REGISTERED_BYTES, MIN_MAX_RDMA_REGISTERED_BYTES, MAX_MAX_RDMA_REGISTERED_BYTES,
+             ConfigurationFlags::MEMORY, None, None],
         ],
         string: [
             ["disk-dir", &*CFG_DISK_DIR, "", ConfigurationFlags::IMMUTABLE, None],
